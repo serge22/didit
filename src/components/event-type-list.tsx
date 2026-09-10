@@ -20,9 +20,6 @@ export function EventTypeList() {
 
   return (
     <section className="flex w-full flex-col gap-3">
-      <h2 className="text-left text-sm font-medium text-muted-foreground">
-        Event types
-      </h2>
       {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
       {error && <p className="text-sm text-destructive">{error.message}</p>}
       {eventTypes?.length === 0 && (

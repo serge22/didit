@@ -4,6 +4,7 @@ import { RequireAuth } from '@/components/require-auth'
 import { useAuthListener } from '@/lib/session'
 import { LoginPage } from '@/pages/login-page'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { TypesPage } from '@/pages/types-page'
 
 const queryClient = new QueryClient()
 
@@ -18,6 +19,14 @@ function Routing() {
         element={
           <RequireAuth>
             <DashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/types"
+        element={
+          <RequireAuth>
+            <TypesPage />
           </RequireAuth>
         }
       />

@@ -1,10 +1,17 @@
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { useId, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -18,7 +25,7 @@ import { useCreateEvent, useEvents } from '@/lib/events'
 const ALL_TYPES = 'all'
 
 const eventSchema = z.object({
-  event_type_id: z.string().min(1, 'Select a type'),
+  type: z.string().trim().min(1, 'Required').max(100),
   occurred_at: z.string().min(1, 'Required'),
 })
 type EventValues = z.infer<typeof eventSchema>
@@ -34,6 +41,7 @@ function nowLocalInputValue() {
 export function EventLog() {
   const { data: eventTypes } = useEventTypes()
   const [filter, setFilter] = useState<string>(ALL_TYPES)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const {
     data: events,
     isPending,
@@ -41,37 +49,49 @@ export function EventLog() {
   } = useEvents(filter === ALL_TYPES ? null : filter)
 
   const hasTypes = (eventTypes?.length ?? 0) > 0
+  const filterItems: Record<string, string> = {
+    [ALL_TYPES]: 'All types',
+    ...Object.fromEntries((eventTypes ?? []).map((t) => [t.id, t.label])),
+  }
 
   return (
     <section className="flex w-full flex-col gap-3">
-      <h2 className="text-left text-sm font-medium text-muted-foreground">Events</h2>
+      <div className="flex items-center justify-between gap-2">
+        {hasTypes ? (
+          <Select
+            items={filterItems}
+            value={filter}
+            onValueChange={(value) => setFilter(value ?? ALL_TYPES)}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_TYPES}>All types</SelectItem>
+              {eventTypes!.map((eventType) => (
+                <SelectItem key={eventType.id} value={eventType.id}>
+                  {eventType.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span />
+        )}
 
-      {hasTypes ? (
-        <AddEventForm eventTypes={eventTypes!} />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Add an event type above, then log your first event here.
-        </p>
-      )}
-
-      {hasTypes && (
-        <Select
-          value={filter}
-          onValueChange={(value) => setFilter(value ?? ALL_TYPES)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="All types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_TYPES}>All types</SelectItem>
-            {eventTypes!.map((eventType) => (
-              <SelectItem key={eventType.id} value={eventType.id}>
-                {eventType.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger render={<Button>Add event</Button>} />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add event</DialogTitle>
+            </DialogHeader>
+            <AddEventForm
+              eventTypes={eventTypes ?? []}
+              onDone={() => setDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
       {error && <p className="text-sm text-destructive">{error.message}</p>}
@@ -97,60 +117,49 @@ export function EventLog() {
 
 function AddEventForm({
   eventTypes,
+  onDone,
 }: {
   eventTypes: { id: string; label: string }[]
+  onDone: () => void
 }) {
+  const listId = useId()
   const createEvent = useCreateEvent()
   const {
-    control,
     register,
     handleSubmit,
-    reset,
     formState: { errors, isSubmitting },
   } = useForm<EventValues>({
     resolver: zodResolver(eventSchema),
-    defaultValues: { event_type_id: '', occurred_at: nowLocalInputValue() },
+    defaultValues: { type: '', occurred_at: nowLocalInputValue() },
   })
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-md border border-border p-3"
+      className="flex flex-col gap-3"
       onSubmit={handleSubmit(async (values) => {
         await createEvent.mutateAsync({
-          event_type_id: values.event_type_id,
+          type: values.type,
           occurred_at: new Date(values.occurred_at).toISOString(),
         })
-        reset({
-          event_type_id: values.event_type_id,
-          occurred_at: nowLocalInputValue(),
-        })
+        onDone()
       })}
     >
       <div className="flex flex-col gap-1.5">
-        <Label>Type</Label>
-        <Controller
-          control={control}
-          name="event_type_id"
-          render={({ field }) => (
-            <Select
-              value={field.value}
-              onValueChange={(value) => field.onChange(value ?? '')}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a type" />
-              </SelectTrigger>
-              <SelectContent>
-                {eventTypes.map((eventType) => (
-                  <SelectItem key={eventType.id} value={eventType.id}>
-                    {eventType.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        <Label htmlFor="event-type">Type</Label>
+        <Input
+          id="event-type"
+          list={listId}
+          autoComplete="off"
+          placeholder="Pick one or type a new one"
+          {...register('type')}
         />
-        {errors.event_type_id && (
-          <p className="text-sm text-destructive">{errors.event_type_id.message}</p>
+        <datalist id={listId}>
+          {eventTypes.map((eventType) => (
+            <option key={eventType.id} value={eventType.label} />
+          ))}
+        </datalist>
+        {errors.type && (
+          <p className="text-sm text-destructive">{errors.type.message}</p>
         )}
       </div>
       <div className="flex flex-col gap-1.5">
