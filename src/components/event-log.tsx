@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Trash2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +29,7 @@ import {
   AutocompleteList,
 } from '@/components/ui/autocomplete'
 import { useEventTypes } from '@/lib/event-types'
-import { useCreateEvent, useEvents } from '@/lib/events'
+import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/events'
 
 const ALL_TYPES = 'all'
 
@@ -108,18 +109,52 @@ export function EventLog() {
       )}
       <ul className="flex flex-col gap-1.5">
         {events?.map((event) => (
-          <li
+          <EventRow
             key={event.id}
-            className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
-          >
-            <span>{event.event_types?.label ?? 'Unknown type'}</span>
-            <span className="text-muted-foreground">
-              {new Date(event.occurred_at).toLocaleString()}
-            </span>
-          </li>
+            id={event.id}
+            typeLabel={event.event_types?.label ?? 'Unknown type'}
+            occurredAt={event.occurred_at}
+          />
         ))}
       </ul>
     </section>
+  )
+}
+
+function EventRow({
+  id,
+  typeLabel,
+  occurredAt,
+}: {
+  id: string
+  typeLabel: string
+  occurredAt: string
+}) {
+  const deleteEvent = useDeleteEvent()
+
+  return (
+    <li className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
+      <span>{typeLabel}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground">
+          {new Date(occurredAt).toLocaleString()}
+        </span>
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-label="Delete event"
+          disabled={deleteEvent.isPending}
+          onClick={() => {
+            if (confirm('Delete this event?')) {
+              deleteEvent.mutate(id)
+            }
+          }}
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+    </li>
   )
 }
 
