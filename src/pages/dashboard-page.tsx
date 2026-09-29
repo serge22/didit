@@ -19,6 +19,9 @@ export function DashboardPage() {
           <Link to="/types" className={buttonVariants({ variant: 'ghost' })}>
             Manage types
           </Link>
+          <Link to="/account" className={buttonVariants({ variant: 'ghost' })}>
+            Account
+          </Link>
           <Button variant="outline" onClick={() => supabase.auth.signOut()}>
             Sign out
           </Button>

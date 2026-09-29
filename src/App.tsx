@@ -5,6 +5,7 @@ import { useAuthListener } from '@/lib/session'
 import { LoginPage } from '@/pages/login-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { TypesPage } from '@/pages/types-page'
+import { AccountPage } from '@/pages/account-page'
 
 const queryClient = new QueryClient()
 
@@ -27,6 +28,14 @@ function Routing() {
         element={
           <RequireAuth>
             <TypesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/account"
+        element={
+          <RequireAuth>
+            <AccountPage />
           </RequireAuth>
         }
       />
