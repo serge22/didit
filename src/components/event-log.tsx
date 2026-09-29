@@ -1,5 +1,5 @@
-import { useId, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Autocomplete,
+  AutocompleteContent,
+  AutocompleteEmpty,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+} from '@/components/ui/autocomplete'
 import { useEventTypes } from '@/lib/event-types'
 import { useCreateEvent, useEvents } from '@/lib/events'
 
@@ -122,16 +130,17 @@ function AddEventForm({
   eventTypes: { id: string; label: string }[]
   onDone: () => void
 }) {
-  const listId = useId()
   const createEvent = useCreateEvent()
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<EventValues>({
     resolver: zodResolver(eventSchema),
     defaultValues: { type: '', occurred_at: nowLocalInputValue() },
   })
+  const typeLabels = eventTypes.map((eventType) => eventType.label)
 
   return (
     <form
@@ -146,18 +155,33 @@ function AddEventForm({
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="event-type">Type</Label>
-        <Input
-          id="event-type"
-          list={listId}
-          autoComplete="off"
-          placeholder="Pick one or type a new one"
-          {...register('type')}
+        <Controller
+          control={control}
+          name="type"
+          render={({ field }) => (
+            <Autocomplete
+              items={typeLabels}
+              value={field.value}
+              onValueChange={field.onChange}
+            >
+              <AutocompleteInput
+                id="event-type"
+                placeholder="Pick one or type a new one"
+                onBlur={field.onBlur}
+              />
+              <AutocompleteContent>
+                <AutocompleteEmpty>Press Enter to add a new type</AutocompleteEmpty>
+                <AutocompleteList>
+                  {(label: string) => (
+                    <AutocompleteItem key={label} value={label}>
+                      {label}
+                    </AutocompleteItem>
+                  )}
+                </AutocompleteList>
+              </AutocompleteContent>
+            </Autocomplete>
+          )}
         />
-        <datalist id={listId}>
-          {eventTypes.map((eventType) => (
-            <option key={eventType.id} value={eventType.label} />
-          ))}
-        </datalist>
         {errors.type && (
           <p className="text-sm text-destructive">{errors.type.message}</p>
         )}
