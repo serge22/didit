@@ -29,7 +29,7 @@ import {
   AutocompleteList,
 } from '@/components/ui/autocomplete'
 import { useEventTypes } from '@/lib/event-types'
-import { useCreateEvent, useDeleteEvent, useEvents } from '@/lib/events'
+import { EVENTS_PAGE_SIZE, useCreateEvent, useDeleteEvent, useEvents } from '@/lib/events'
 
 const ALL_TYPES = 'all'
 
@@ -50,12 +50,20 @@ function nowLocalInputValue() {
 export function EventLog() {
   const { data: eventTypes } = useEventTypes()
   const [filter, setFilter] = useState<string>(ALL_TYPES)
+  const [page, setPage] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const {
-    data: events,
+    data,
     isPending,
     error,
-  } = useEvents(filter === ALL_TYPES ? null : filter)
+  } = useEvents(filter === ALL_TYPES ? null : filter, page)
+
+  const events = data?.events
+  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / EVENTS_PAGE_SIZE))
+
+  if (page > 0 && page >= totalPages) {
+    setPage(totalPages - 1)
+  }
 
   const hasTypes = (eventTypes?.length ?? 0) > 0
   const filterItems: Record<string, string> = {
@@ -70,7 +78,10 @@ export function EventLog() {
           <Select
             items={filterItems}
             value={filter}
-            onValueChange={(value) => setFilter(value ?? ALL_TYPES)}
+            onValueChange={(value) => {
+              setFilter(value ?? ALL_TYPES)
+              setPage(0)
+            }}
           >
             <SelectTrigger className="w-40">
               <SelectValue placeholder="All types" />
@@ -96,7 +107,10 @@ export function EventLog() {
             </DialogHeader>
             <AddEventForm
               eventTypes={eventTypes ?? []}
-              onDone={() => setDialogOpen(false)}
+              onDone={() => {
+                setDialogOpen(false)
+                setPage(0)
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -117,6 +131,32 @@ export function EventLog() {
           />
         ))}
       </ul>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page + 1} of {totalPages}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

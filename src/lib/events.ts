@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { sessionQueryOptions } from './session'
@@ -11,29 +16,36 @@ export type EventWithType = {
   event_types: { label: string } | null
 }
 
-export function eventsQueryOptions(eventTypeId: string | null) {
+export const EVENTS_PAGE_SIZE = 10
+
+export function eventsQueryOptions(eventTypeId: string | null, page: number) {
   return {
-    queryKey: ['events', { eventTypeId }] as const,
+    queryKey: ['events', { eventTypeId, page }] as const,
     queryFn: async () => {
       let builder = supabase
         .from('events')
-        .select('id, occurred_at, event_type_id, event_types ( label )')
+        .select('id, occurred_at, event_type_id, event_types ( label )', {
+          count: 'exact',
+        })
 
       if (eventTypeId) {
         builder = builder.eq('event_type_id', eventTypeId)
       }
 
-      const { data, error } = await builder
+      const from = page * EVENTS_PAGE_SIZE
+      const { data, error, count } = await builder
         .order('occurred_at', { ascending: false })
+        .range(from, from + EVENTS_PAGE_SIZE - 1)
         .returns<EventWithType[]>()
       if (error) throw error
-      return data
+      return { events: data, count: count ?? 0 }
     },
+    placeholderData: keepPreviousData,
   }
 }
 
-export function useEvents(eventTypeId: string | null) {
-  return useQuery(eventsQueryOptions(eventTypeId))
+export function useEvents(eventTypeId: string | null, page: number) {
+  return useQuery(eventsQueryOptions(eventTypeId, page))
 }
 
 /**
