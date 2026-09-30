@@ -15,6 +15,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -190,48 +196,48 @@ function EventRow({
   const [editOpen, setEditOpen] = useState(false)
 
   return (
-    <li className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
-      <span>{typeLabel}</span>
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground">
-          {formatDate(occurredAt)}
-        </span>
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogTrigger
-            render={
-              <Button type="button" size="icon-xs" variant="ghost" aria-label="Edit event">
-                <PencilIcon />
-              </Button>
-            }
-          />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit event</DialogTitle>
-            </DialogHeader>
-            <EditEventForm
-              id={id}
-              typeLabel={typeLabel}
-              occurredAt={occurredAt}
-              eventTypes={eventTypes}
-              onDone={() => setEditOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-        <Button
-          type="button"
-          size="icon-xs"
-          variant="ghost"
-          aria-label="Delete event"
+    <li>
+      <DropdownMenu>
+        <DropdownMenuTrigger
           disabled={deleteEvent.isPending}
-          onClick={() => {
-            if (confirm('Delete this event?')) {
-              deleteEvent.mutate(id)
-            }
-          }}
+          className="flex w-full items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-muted data-popup-open:bg-muted disabled:opacity-50"
         >
-          <Trash2Icon />
-        </Button>
-      </div>
+          <span>{typeLabel}</span>
+          <span className="text-muted-foreground">{formatDate(occurredAt)}</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem className="py-2.5 sm:py-1.5" onClick={() => setEditOpen(true)}>
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            className="py-2.5 sm:py-1.5"
+            onClick={() => {
+              if (confirm('Delete this event?')) {
+                deleteEvent.mutate(id)
+              }
+            }}
+          >
+            <Trash2Icon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit event</DialogTitle>
+          </DialogHeader>
+          <EditEventForm
+            id={id}
+            typeLabel={typeLabel}
+            occurredAt={occurredAt}
+            eventTypes={eventTypes}
+            onDone={() => setEditOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </li>
   )
 }
