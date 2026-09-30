@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  type QueryClient,
   useMutation,
   useQuery,
   useQueryClient,
@@ -49,63 +50,90 @@ export function useEvents(eventTypeId: string | null, page: number) {
 }
 
 /**
- * Creates an event. `type` is a label the user typed or picked from the
- * dropdown; if no event type with that label exists yet, it's created first.
+ * Resolves a type label the user typed or picked from the dropdown to an event
+ * type id; if no event type with that label exists yet, it's created first.
  */
+async function resolveEventTypeId(
+  queryClient: QueryClient,
+  userId: string,
+  type: string,
+) {
+  const label = type.trim()
+  if (!label) throw new Error('Event type is required')
+
+  const cachedTypes = queryClient.getQueryData<{ id: string; label: string }[]>(
+    eventTypesQueryOptions.queryKey,
+  )
+  const existing = cachedTypes?.find(
+    (t) => t.label.toLowerCase() === label.toLowerCase(),
+  )
+  if (existing) return existing.id
+
+  const inserted = await supabase
+    .from('event_types')
+    .insert({ label, user_id: userId })
+    .select('id')
+    .single()
+
+  if (inserted.error?.code === '23505') {
+    // Created concurrently, or a case-only duplicate — reuse it.
+    const found = await supabase
+      .from('event_types')
+      .select('id')
+      .eq('label', label)
+      .single()
+    if (found.error) throw found.error
+    return found.data.id
+  }
+  if (inserted.error) throw inserted.error
+  return inserted.data.id
+}
+
+function requireUserId(queryClient: QueryClient) {
+  const session = queryClient.getQueryData<Session | null>(
+    sessionQueryOptions.queryKey,
+  )
+  if (!session) throw new Error('Not signed in')
+  return session.user.id
+}
+
+export type EventInput = { type: string; occurred_at: string }
+
 export function useCreateEvent() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      type,
-      occurred_at,
-    }: {
-      type: string
-      occurred_at: string
-    }) => {
-      const session = queryClient.getQueryData<Session | null>(
-        sessionQueryOptions.queryKey,
-      )
-      if (!session) throw new Error('Not signed in')
-      const userId = session.user.id
-
-      const label = type.trim()
-      if (!label) throw new Error('Event type is required')
-
-      const cachedTypes = queryClient.getQueryData<
-        { id: string; label: string }[]
-      >(eventTypesQueryOptions.queryKey)
-      const existing = cachedTypes?.find(
-        (t) => t.label.toLowerCase() === label.toLowerCase(),
-      )
-
-      let eventTypeId = existing?.id
-      if (!eventTypeId) {
-        const inserted = await supabase
-          .from('event_types')
-          .insert({ label, user_id: userId })
-          .select('id')
-          .single()
-
-        if (inserted.error?.code === '23505') {
-          // Created concurrently, or a case-only duplicate — reuse it.
-          const found = await supabase
-            .from('event_types')
-            .select('id')
-            .eq('label', label)
-            .single()
-          if (found.error) throw found.error
-          eventTypeId = found.data.id
-        } else if (inserted.error) {
-          throw inserted.error
-        } else {
-          eventTypeId = inserted.data.id
-        }
-      }
+    mutationFn: async ({ type, occurred_at }: EventInput) => {
+      const userId = requireUserId(queryClient)
+      const eventTypeId = await resolveEventTypeId(queryClient, userId, type)
 
       const { data, error } = await supabase
         .from('events')
         .insert({ event_type_id: eventTypeId, user_id: userId, occurred_at })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: eventTypesQueryOptions.queryKey })
+    },
+  })
+}
+
+export function useUpdateEvent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, type, occurred_at }: EventInput & { id: string }) => {
+      const userId = requireUserId(queryClient)
+      const eventTypeId = await resolveEventTypeId(queryClient, userId, type)
+
+      const { data, error } = await supabase
+        .from('events')
+        .update({ event_type_id: eventTypeId, occurred_at })
+        .eq('id', id)
         .select()
         .single()
       if (error) throw error

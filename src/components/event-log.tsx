@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSearchParams } from 'react-router'
 import { z } from 'zod'
-import { Trash2Icon } from 'lucide-react'
+import { PencilIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,7 +31,13 @@ import {
 } from '@/components/ui/autocomplete'
 import { useEventTypes } from '@/lib/event-types'
 import { useFormatDate } from '@/lib/date-format'
-import { EVENTS_PAGE_SIZE, useCreateEvent, useDeleteEvent, useEvents } from '@/lib/events'
+import {
+  EVENTS_PAGE_SIZE,
+  useCreateEvent,
+  useDeleteEvent,
+  useEvents,
+  useUpdateEvent,
+} from '@/lib/events'
 
 const ALL_TYPES = 'all'
 
@@ -41,8 +47,8 @@ const eventSchema = z.object({
 })
 type EventValues = z.infer<typeof eventSchema>
 
-function nowLocalInputValue() {
-  const d = new Date()
+/** Formats a date as a `datetime-local` input value in the user's timezone. */
+function toLocalInputValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours(),
@@ -134,6 +140,7 @@ export function EventLog() {
             id={event.id}
             typeLabel={event.event_types?.label ?? 'Unknown type'}
             occurredAt={event.occurred_at}
+            eventTypes={eventTypes ?? []}
           />
         ))}
       </ul>
@@ -171,13 +178,16 @@ function EventRow({
   id,
   typeLabel,
   occurredAt,
+  eventTypes,
 }: {
   id: string
   typeLabel: string
   occurredAt: string
+  eventTypes: { id: string; label: string }[]
 }) {
   const deleteEvent = useDeleteEvent()
   const formatDate = useFormatDate()
+  const [editOpen, setEditOpen] = useState(false)
 
   return (
     <li className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
@@ -186,6 +196,27 @@ function EventRow({
         <span className="text-muted-foreground">
           {formatDate(occurredAt)}
         </span>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogTrigger
+            render={
+              <Button type="button" size="icon-xs" variant="ghost" aria-label="Edit event">
+                <PencilIcon />
+              </Button>
+            }
+          />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit event</DialogTitle>
+            </DialogHeader>
+            <EditEventForm
+              id={id}
+              typeLabel={typeLabel}
+              occurredAt={occurredAt}
+              eventTypes={eventTypes}
+              onDone={() => setEditOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
         <Button
           type="button"
           size="icon-xs"
@@ -213,6 +244,66 @@ function AddEventForm({
   onDone: () => void
 }) {
   const createEvent = useCreateEvent()
+
+  return (
+    <EventForm
+      eventTypes={eventTypes}
+      defaultValues={{ type: '', occurred_at: toLocalInputValue(new Date()) }}
+      submitLabel="Log it"
+      error={createEvent.error}
+      onSubmit={async (values) => {
+        await createEvent.mutateAsync(values)
+        onDone()
+      }}
+    />
+  )
+}
+
+function EditEventForm({
+  id,
+  typeLabel,
+  occurredAt,
+  eventTypes,
+  onDone,
+}: {
+  id: string
+  typeLabel: string
+  occurredAt: string
+  eventTypes: { id: string; label: string }[]
+  onDone: () => void
+}) {
+  const updateEvent = useUpdateEvent()
+
+  return (
+    <EventForm
+      eventTypes={eventTypes}
+      defaultValues={{
+        type: typeLabel,
+        occurred_at: toLocalInputValue(new Date(occurredAt)),
+      }}
+      submitLabel="Save"
+      error={updateEvent.error}
+      onSubmit={async (values) => {
+        await updateEvent.mutateAsync({ id, ...values })
+        onDone()
+      }}
+    />
+  )
+}
+
+function EventForm({
+  eventTypes,
+  defaultValues,
+  submitLabel,
+  error,
+  onSubmit,
+}: {
+  eventTypes: { id: string; label: string }[]
+  defaultValues: EventValues
+  submitLabel: string
+  error: Error | null
+  onSubmit: (values: { type: string; occurred_at: string }) => Promise<void>
+}) {
   const {
     register,
     control,
@@ -220,20 +311,19 @@ function AddEventForm({
     formState: { errors, isSubmitting },
   } = useForm<EventValues>({
     resolver: zodResolver(eventSchema),
-    defaultValues: { type: '', occurred_at: nowLocalInputValue() },
+    defaultValues,
   })
   const typeLabels = eventTypes.map((eventType) => eventType.label)
 
   return (
     <form
       className="flex flex-col gap-3"
-      onSubmit={handleSubmit(async (values) => {
-        await createEvent.mutateAsync({
+      onSubmit={handleSubmit((values) =>
+        onSubmit({
           type: values.type,
           occurred_at: new Date(values.occurred_at).toISOString(),
-        })
-        onDone()
-      })}
+        }),
+      )}
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="event-type">Type</Label>
@@ -275,11 +365,9 @@ function AddEventForm({
           <p className="text-sm text-destructive">{errors.occurred_at.message}</p>
         )}
       </div>
-      {createEvent.error && (
-        <p className="text-sm text-destructive">{createEvent.error.message}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{error.message}</p>}
       <Button type="submit" disabled={isSubmitting}>
-        Log it
+        {submitLabel}
       </Button>
     </form>
   )
