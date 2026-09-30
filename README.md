@@ -8,6 +8,8 @@ person creates their own account and only ever sees their own data.
 Deliberately small: one event list, an add-event form, and light event-type
 management (create/rename/filter by type). Not a general task manager.
 
+**Live demo:** [didit.serg.top](https://didit.serg.top/) — sign up for your own account to try it.
+
 ## Stack
 
 | Layer | Choice |
