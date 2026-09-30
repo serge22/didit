@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { AppHeader } from '@/components/app-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,12 +20,7 @@ import { sessionQueryOptions } from '@/lib/session'
 export function AccountPage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-6 p-6">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-foreground">Account</h1>
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Back
-        </Link>
-      </div>
+      <AppHeader title="Account" />
       <EmailForm />
       <PasswordForm />
     </main>
