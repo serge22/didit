@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Trash2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,9 @@ function nowLocalInputValue() {
 
 export function EventLog() {
   const { data: eventTypes } = useEventTypes()
-  const [filter, setFilter] = useState<string>(ALL_TYPES)
+  // The type filter lives in the URL (`/?type=<id>`) so the types page can link to it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filter = searchParams.get('type') ?? ALL_TYPES
   const [page, setPage] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const {
@@ -79,7 +82,9 @@ export function EventLog() {
             items={filterItems}
             value={filter}
             onValueChange={(value) => {
-              setFilter(value ?? ALL_TYPES)
+              setSearchParams(
+                !value || value === ALL_TYPES ? {} : { type: value },
+              )
               setPage(0)
             }}
           >

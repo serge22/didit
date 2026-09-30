@@ -8,10 +8,13 @@ export const eventTypesQueryOptions = {
   queryFn: async () => {
     const { data, error } = await supabase
       .from('event_types')
-      .select('*')
+      .select('id, label, events ( count )')
       .order('label')
     if (error) throw error
-    return data
+    return data.map(({ events, ...eventType }) => ({
+      ...eventType,
+      eventCount: events[0]?.count ?? 0,
+    }))
   },
 }
 

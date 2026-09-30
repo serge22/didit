@@ -128,6 +128,7 @@ export function useDeleteEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: eventTypesQueryOptions.queryKey })
     },
   })
 }

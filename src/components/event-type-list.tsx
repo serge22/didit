@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,7 +30,12 @@ export function EventTypeList() {
       )}
       <ul className="flex flex-col gap-1.5">
         {eventTypes?.map((eventType) => (
-          <EventTypeRow key={eventType.id} id={eventType.id} label={eventType.label} />
+          <EventTypeRow
+            key={eventType.id}
+            id={eventType.id}
+            label={eventType.label}
+            eventCount={eventType.eventCount}
+          />
         ))}
       </ul>
       <AddEventTypeForm />
@@ -37,7 +43,15 @@ export function EventTypeList() {
   )
 }
 
-function EventTypeRow({ id, label }: { id: string; label: string }) {
+function EventTypeRow({
+  id,
+  label,
+  eventCount,
+}: {
+  id: string
+  label: string
+  eventCount: number
+}) {
   const [editing, setEditing] = useState(false)
   const renameEventType = useRenameEventType()
   const {
@@ -91,8 +105,19 @@ function EventTypeRow({ id, label }: { id: string; label: string }) {
   }
 
   return (
-    <li className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
-      <span>{label}</span>
+    <li className="flex items-center gap-2 rounded-md border border-border py-1 pr-1 pl-3">
+      <Link
+        to={`/?type=${id}`}
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 py-1 hover:underline"
+      >
+        <span className="truncate">{label}</span>
+        <span
+          className="shrink-0 rounded-full bg-muted px-2 text-sm text-muted-foreground tabular-nums"
+          aria-label={`${eventCount} ${eventCount === 1 ? 'event' : 'events'}`}
+        >
+          {eventCount}
+        </span>
+      </Link>
       <Button
         type="button"
         size="sm"
