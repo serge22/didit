@@ -30,6 +30,7 @@ import {
   AutocompleteList,
 } from '@/components/ui/autocomplete'
 import { useEventTypes } from '@/lib/event-types'
+import { useFormatDate } from '@/lib/date-format'
 import { EVENTS_PAGE_SIZE, useCreateEvent, useDeleteEvent, useEvents } from '@/lib/events'
 
 const ALL_TYPES = 'all'
@@ -176,13 +177,14 @@ function EventRow({
   occurredAt: string
 }) {
   const deleteEvent = useDeleteEvent()
+  const formatDate = useFormatDate()
 
   return (
     <li className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
       <span>{typeLabel}</span>
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground">
-          {new Date(occurredAt).toLocaleString()}
+          {formatDate(occurredAt)}
         </span>
         <Button
           type="button"

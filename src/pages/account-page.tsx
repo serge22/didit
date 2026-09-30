@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQuery } from '@tanstack/react-query'
@@ -14,16 +14,102 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { supabase } from '@/lib/supabase'
 import { sessionQueryOptions } from '@/lib/session'
+import { DATE_FORMATS, useDateFormat, type DateFormat } from '@/lib/date-format'
 
 export function AccountPage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-6 p-6">
       <AppHeader title="Account" />
+      <DateFormatForm />
       <EmailForm />
       <PasswordForm />
     </main>
+  )
+}
+
+const dateFormatSchema = z.object({
+  dateFormat: z.enum(Object.keys(DATE_FORMATS) as [DateFormat, ...DateFormat[]]),
+})
+type DateFormatValues = z.infer<typeof dateFormatSchema>
+
+function DateFormatForm() {
+  const current = useDateFormat()
+  const [notice, setNotice] = useState<string | null>(null)
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting, isDirty },
+    reset,
+    setError,
+  } = useForm<DateFormatValues>({
+    resolver: zodResolver(dateFormatSchema),
+    defaultValues: { dateFormat: current },
+  })
+  const sample = new Date()
+  const items = Object.fromEntries(
+    Object.entries(DATE_FORMATS).map(([value, { format }]) => [value, format(sample)]),
+  )
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Date format</CardTitle>
+        <CardDescription>How event times are shown in your event list.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={handleSubmit(async (values) => {
+            setNotice(null)
+            const { error } = await supabase.auth.updateUser({
+              data: { date_format: values.dateFormat },
+            })
+            if (error) {
+              setError('root', { message: error.message })
+              return
+            }
+            reset(values)
+            setNotice('Date format saved.')
+          })}
+        >
+          <Controller
+            control={control}
+            name="dateFormat"
+            render={({ field }) => (
+              <Select items={items} value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full" aria-label="Date format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DATE_FORMATS).map(([value, { label, format }]) => (
+                    <SelectItem key={value} value={value}>
+                      {format(sample)}
+                      <span className="text-muted-foreground">{label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.root && (
+            <p className="text-sm text-destructive">{errors.root.message}</p>
+          )}
+          {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
+            Save date format
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
