@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { RequireAuth } from '@/components/require-auth'
 import { useAuthListener } from '@/lib/session'
+import { useApplyTheme } from '@/lib/theme'
 import { LoginPage } from '@/pages/login-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { TypesPage } from '@/pages/types-page'
@@ -11,6 +12,7 @@ const queryClient = new QueryClient()
 
 function Routing() {
   useAuthListener()
+  useApplyTheme()
 
   return (
     <Routes>

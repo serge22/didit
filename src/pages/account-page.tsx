@@ -24,15 +24,89 @@ import {
 import { supabase } from '@/lib/supabase'
 import { sessionQueryOptions } from '@/lib/session'
 import { DATE_FORMATS, useDateFormat, type DateFormat } from '@/lib/date-format'
+import { THEMES, useTheme, type Theme } from '@/lib/theme'
 
 export function AccountPage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col gap-6 p-6">
       <AppHeader title="Account" />
+      <ThemeForm />
       <DateFormatForm />
       <EmailForm />
       <PasswordForm />
     </main>
+  )
+}
+
+const themeSchema = z.object({
+  theme: z.enum(Object.keys(THEMES) as [Theme, ...Theme[]]),
+})
+type ThemeValues = z.infer<typeof themeSchema>
+
+function ThemeForm() {
+  const current = useTheme()
+  const [notice, setNotice] = useState<string | null>(null)
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting, isDirty },
+    reset,
+    setError,
+  } = useForm<ThemeValues>({
+    resolver: zodResolver(themeSchema),
+    defaultValues: { theme: current },
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Theme</CardTitle>
+        <CardDescription>System follows your device's light or dark setting.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={handleSubmit(async (values) => {
+            setNotice(null)
+            const { error } = await supabase.auth.updateUser({
+              data: { theme: values.theme },
+            })
+            if (error) {
+              setError('root', { message: error.message })
+              return
+            }
+            reset(values)
+            setNotice('Theme saved.')
+          })}
+        >
+          <Controller
+            control={control}
+            name="theme"
+            render={({ field }) => (
+              <Select items={THEMES} value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-full" aria-label="Theme">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(THEMES).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.root && (
+            <p className="text-sm text-destructive">{errors.root.message}</p>
+          )}
+          {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
+            Save theme
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
